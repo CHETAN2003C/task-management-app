@@ -2,6 +2,7 @@
 @using TaskManagementApp.Models
 @using TaskManagementApp.Services
 @inject TaskService TaskService
+@inject CategoryService CategoryService
 @inject NavigationManager Navigation
 
 <PageTitle>Edit Task</PageTitle>
@@ -50,6 +51,17 @@
             </div>
 
             <div class="form-group">
+                <label for="category">Category</label>
+                <InputSelect id="category" class="form-control" @bind-Value="task.CategoryId">
+                    <option value="">-- No Category --</option>
+                    @foreach (var category in categories)
+                    {
+                        <option value="@category.Id">@category.Name</option>
+                    }
+                </InputSelect>
+            </div>
+
+            <div class="form-group">
                 <label class="checkbox-label">
                     <InputCheckbox @bind-Value="task.IsCompleted" />
                     <span>Mark as completed</span>
@@ -73,9 +85,11 @@
     public int TaskId { get; set; }
 
     private TaskItem? task;
+    private List<Category> categories = new();
 
     protected override async Task OnInitializedAsync()
     {
+        categories = await CategoryService.GetAllCategoriesAsync();
         task = await TaskService.GetTaskByIdAsync(TaskId);
         if (task == null)
         {

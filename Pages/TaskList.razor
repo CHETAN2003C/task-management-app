@@ -54,6 +54,12 @@
                             <span class="@(task.DueDate < DateTime.Now && !task.IsCompleted ? "overdue" : "")">
                                 📅 Due: @task.DueDate.ToString("MMM dd, yyyy")
                             </span>
+                            @if (task.Category != null)
+                            {
+                                <span class="category-badge" style="background-color: @task.Category.Color; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.85em; margin-left: 8px;">
+                                    @task.Category.Name
+                                </span>
+                            }
                         </div>
                         <div class="task-actions">
                             <button class="btn-icon" @onclick="() => NavigateToEdit(task.Id)" title="Edit">
@@ -85,6 +91,10 @@
 </div>
 
 @code {
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public int? CategoryId { get; set; }
+
     private List<TaskItem> allTasks = new();
     private List<TaskItem> filteredTasks = new();
     private string filterStatus = "all";
@@ -96,7 +106,14 @@
 
     private async Task LoadTasks()
     {
-        allTasks = await TaskService.GetAllTasksAsync();
+        if (CategoryId.HasValue)
+        {
+            allTasks = await TaskService.GetTasksByCategoryAsync(CategoryId.Value);
+        }
+        else
+        {
+            allTasks = await TaskService.GetAllTasksAsync();
+        }
         FilterTasks(filterStatus);
     }
 

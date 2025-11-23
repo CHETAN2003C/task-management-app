@@ -22,6 +22,15 @@ namespace TaskManagementApp.Models
         public bool IsCompleted { get; set; } = false;
 
         public DateTime CreatedAt { get; set; } = DateTime.Now;
+
+        // Foreign keys
+        public int? CategoryId { get; set; }
+
+        // Navigation properties
+        public Category? Category { get; set; }
+        public ICollection<Tag> Tags { get; set; } = new List<Tag>();
+        public ICollection<Comment> Comments { get; set; } = new List<Comment>();
+        public ICollection<Attachment> Attachments { get; set; } = new List<Attachment>();
     }
 
     public enum Priority

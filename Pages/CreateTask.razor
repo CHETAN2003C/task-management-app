@@ -2,6 +2,7 @@
 @using TaskManagementApp.Models
 @using TaskManagementApp.Services
 @inject TaskService TaskService
+@inject CategoryService CategoryService
 @inject NavigationManager Navigation
 
 <PageTitle>Create Task</PageTitle>
@@ -47,6 +48,17 @@
             </div>
         </div>
 
+        <div class="form-group">
+            <label for="category">Category</label>
+            <InputSelect id="category" class="form-control" @bind-Value="newTask.CategoryId">
+                <option value="">-- Select Category (Optional) --</option>
+                @foreach (var category in categories)
+                {
+                    <option value="@category.Id">@category.Name</option>
+                }
+            </InputSelect>
+        </div>
+
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">Create Task</button>
             <button type="button" class="btn btn-secondary" @onclick="NavigateBack">Cancel</button>
@@ -55,11 +67,26 @@
 </div>
 
 @code {
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public int? CategoryId { get; set; }
+
+    private List<Category> categories = new();
     private TaskItem newTask = new()
     {
         DueDate = DateTime.Now.AddDays(1),
         Priority = Priority.Medium
     };
+
+    protected override async Task OnInitializedAsync()
+    {
+        categories = await CategoryService.GetAllCategoriesAsync();
+        
+        if (CategoryId.HasValue)
+        {
+            newTask.CategoryId = CategoryId.Value;
+        }
+    }
 
     private async Task HandleSubmit()
     {
