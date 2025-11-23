@@ -1,0 +1,391 @@
+@page "/tasks"
+@using TaskManagementApp.Models
+@using TaskManagementApp.Services
+@inject TaskService TaskService
+@rendermode InteractiveServer
+
+<PageTitle>Tasks</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1 class="display-5 fw-bold text-primary">
+                <i class="bi bi-check2-square me-2"></i>Task Management
+            </h1>
+            <p class="text-muted">Organize and track your tasks efficiently</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <button class="btn btn-primary btn-lg" @onclick="ShowCreateModal">
+                <i class="bi bi-plus-circle me-2"></i>New Task
+            </button>
+        </div>
+    </div>
+
+    <!-- Filter and Stats Row -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <div class="btn-group" role="group">
+                                <button class="btn @(selectedFilter == "All" ? "btn-primary" : "btn-outline-primary")" 
+                                        @onclick="@(() => FilterTasks("All"))">
+                                    All (@allTasks.Count)
+                                </button>
+                                <button class="btn @(selectedFilter == "Pending" ? "btn-warning" : "btn-outline-warning")" 
+                                        @onclick="@(() => FilterTasks("Pending"))">
+                                    Pending (@allTasks.Count(t => t.Status == Models.TaskStatus.Pending))
+                                </button>
+                                <button class="btn @(selectedFilter == "InProgress" ? "btn-info" : "btn-outline-info")" 
+                                        @onclick="@(() => FilterTasks("InProgress"))">
+                                    In Progress (@allTasks.Count(t => t.Status == Models.TaskStatus.InProgress))
+                                </button>
+                                <button class="btn @(selectedFilter == "Completed" ? "btn-success" : "btn-outline-success")" 
+                                        @onclick="@(() => FilterTasks("Completed"))">
+                                    Completed (@allTasks.Count(t => t.Status == Models.TaskStatus.Completed))
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                <input type="text" class="form-control" placeholder="Search tasks..." 
+                                       @bind="searchText" @bind:event="oninput" @onkeyup="OnSearchKeyUp">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tasks Grid -->
+    <div class="row">
+        @if (filteredTasks.Any())
+        {
+            @foreach (var task in filteredTasks)
+            {
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card h-100 shadow-sm hover-shadow">
+                        <div class="card-header d-flex justify-content-between align-items-center @GetPriorityClass(task.Priority)">
+                            <span class="badge @GetStatusBadgeClass(task.Status)">
+                                @task.Status.ToString()
+                            </span>
+                            <span class="badge @GetPriorityBadgeClass(task.Priority)">
+                                @task.Priority.ToString()
+                            </span>
+                        </div>
+                        <div class="card-body">
+                            <h5 class="card-title">@task.Title</h5>
+                            <p class="card-text text-muted">@task.Description</p>
+                            
+                            @if (task.DueDate.HasValue)
+                            {
+                                <div class="mb-2">
+                                    <small class="text-muted">
+                                        <i class="bi bi-calendar-event me-1"></i>
+                                        Due: @task.DueDate.Value.ToString("MMM dd, yyyy")
+                                        @if (task.DueDate.Value < DateTime.Now && task.Status != Models.TaskStatus.Completed)
+                                        {
+                                            <span class="badge bg-danger ms-2">Overdue</span>
+                                        }
+                                    </small>
+                                </div>
+                            }
+                            
+                            <small class="text-muted d-block">
+                                <i class="bi bi-clock me-1"></i>Created: @task.CreatedDate.ToString("MMM dd, yyyy")
+                            </small>
+                        </div>
+                        <div class="card-footer bg-transparent">
+                            <div class="btn-group w-100" role="group">
+                                <button class="btn btn-sm btn-outline-primary" @onclick="@(() => ShowEditModal(task))">
+                                    <i class="bi bi-pencil"></i> Edit
+                                </button>
+                                <button class="btn btn-sm btn-outline-success" @onclick="@(() => ToggleStatus(task))">
+                                    <i class="bi bi-arrow-repeat"></i> Status
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="@(() => ShowDeleteModal(task))">
+                                    <i class="bi bi-trash"></i> Delete
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="col-12">
+                <div class="alert alert-info text-center" role="alert">
+                    <i class="bi bi-info-circle me-2"></i>
+                    @if (string.IsNullOrWhiteSpace(searchText) && selectedFilter == "All")
+                    {
+                        <span>No tasks yet. Click "New Task" to create your first task!</span>
+                    }
+                    else
+                    {
+                        <span>No tasks found matching your criteria.</span>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Create/Edit Modal -->
+@if (showModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@(isEditMode ? "Edit Task" : "Create New Task")</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Title *</label>
+                        <input type="text" class="form-control" @bind="currentTask.Title" placeholder="Enter task title">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" rows="3" @bind="currentTask.Description" placeholder="Enter task description"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" @bind="currentTask.Status">
+                                <option value="@Models.TaskStatus.Pending">Pending</option>
+                                <option value="@Models.TaskStatus.InProgress">In Progress</option>
+                                <option value="@Models.TaskStatus.Completed">Completed</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Priority</label>
+                            <select class="form-select" @bind="currentTask.Priority">
+                                <option value="@Models.TaskPriority.Low">Low</option>
+                                <option value="@Models.TaskPriority.Medium">Medium</option>
+                                <option value="@Models.TaskPriority.High">High</option>
+                                <option value="@Models.TaskPriority.Critical">Critical</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Due Date</label>
+                        <input type="datetime-local" class="form-control" 
+                               value="@(currentTask.DueDate?.ToString("yyyy-MM-ddTHH:mm"))"
+                               @onchange="@((ChangeEventArgs e) => currentTask.DueDate = string.IsNullOrEmpty(e.Value?.ToString()) ? null : DateTime.Parse(e.Value.ToString()!))">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
+                    <button type="button" class="btn btn-primary" @onclick="SaveTask">
+                        <i class="bi bi-save me-2"></i>@(isEditMode ? "Update" : "Create")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Delete Confirmation Modal -->
+@if (showDeleteModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">Confirm Delete</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseDeleteModal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete this task?</p>
+                    <p class="fw-bold">@taskToDelete?.Title</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseDeleteModal">Cancel</button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmDelete">
+                        <i class="bi bi-trash me-2"></i>Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<TaskItem> allTasks = new();
+    private List<TaskItem> filteredTasks = new();
+    private TaskItem currentTask = new();
+    private TaskItem? taskToDelete;
+    private bool showModal = false;
+    private bool showDeleteModal = false;
+    private bool isEditMode = false;
+    private string selectedFilter = "All";
+    private string searchText = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        LoadTasks();
+    }
+
+    private void LoadTasks()
+    {
+        allTasks = TaskService.GetAllTasks();
+        FilterTasks();
+    }
+
+    private void FilterTasks(string? filter = null)
+    {
+        if (filter != null)
+            selectedFilter = filter;
+
+        filteredTasks = allTasks;
+
+        // Filter by status
+        if (selectedFilter != "All")
+        {
+            var status = selectedFilter switch
+            {
+                "Pending" => Models.TaskStatus.Pending,
+                "InProgress" => Models.TaskStatus.InProgress,
+                "Completed" => Models.TaskStatus.Completed,
+                _ => (Models.TaskStatus?)null
+            };
+            
+            if (status.HasValue)
+                filteredTasks = filteredTasks.Where(t => t.Status == status.Value).ToList();
+        }
+
+        // Filter by search text
+        if (!string.IsNullOrWhiteSpace(searchText))
+        {
+            filteredTasks = filteredTasks.Where(t => 
+                t.Title.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                t.Description.Contains(searchText, StringComparison.OrdinalIgnoreCase)
+            ).ToList();
+        }
+    }
+
+    private void OnSearchKeyUp()
+    {
+        FilterTasks();
+    }
+
+    private void ShowCreateModal()
+    {
+        currentTask = new TaskItem();
+        isEditMode = false;
+        showModal = true;
+    }
+
+    private void ShowEditModal(TaskItem task)
+    {
+        currentTask = new TaskItem
+        {
+            Id = task.Id,
+            Title = task.Title,
+            Description = task.Description,
+            Status = task.Status,
+            Priority = task.Priority,
+            DueDate = task.DueDate,
+            CreatedDate = task.CreatedDate
+        };
+        isEditMode = true;
+        showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+        currentTask = new TaskItem();
+    }
+
+    private void SaveTask()
+    {
+        if (string.IsNullOrWhiteSpace(currentTask.Title))
+            return;
+
+        if (isEditMode)
+        {
+            TaskService.UpdateTask(currentTask);
+        }
+        else
+        {
+            TaskService.CreateTask(currentTask);
+        }
+
+        LoadTasks();
+        CloseModal();
+    }
+
+    private void ShowDeleteModal(TaskItem task)
+    {
+        taskToDelete = task;
+        showDeleteModal = true;
+    }
+
+    private void CloseDeleteModal()
+    {
+        showDeleteModal = false;
+        taskToDelete = null;
+    }
+
+    private void ConfirmDelete()
+    {
+        if (taskToDelete != null)
+        {
+            TaskService.DeleteTask(taskToDelete.Id);
+            LoadTasks();
+        }
+        CloseDeleteModal();
+    }
+
+    private void ToggleStatus(TaskItem task)
+    {
+        task.Status = task.Status switch
+        {
+            Models.TaskStatus.Pending => Models.TaskStatus.InProgress,
+            Models.TaskStatus.InProgress => Models.TaskStatus.Completed,
+            Models.TaskStatus.Completed => Models.TaskStatus.Pending,
+            _ => Models.TaskStatus.Pending
+        };
+        TaskService.UpdateTask(task);
+        LoadTasks();
+    }
+
+    private string GetStatusBadgeClass(Models.TaskStatus status)
+    {
+        return status switch
+        {
+            Models.TaskStatus.Pending => "bg-warning text-dark",
+            Models.TaskStatus.InProgress => "bg-info text-dark",
+            Models.TaskStatus.Completed => "bg-success",
+            _ => "bg-secondary"
+        };
+    }
+
+    private string GetPriorityBadgeClass(Models.TaskPriority priority)
+    {
+        return priority switch
+        {
+            Models.TaskPriority.Low => "bg-secondary",
+            Models.TaskPriority.Medium => "bg-primary",
+            Models.TaskPriority.High => "bg-warning text-dark",
+            Models.TaskPriority.Critical => "bg-danger",
+            _ => "bg-secondary"
+        };
+    }
+
+    private string GetPriorityClass(Models.TaskPriority priority)
+    {
+        return priority switch
+        {
+            Models.TaskPriority.Critical => "border-danger border-3",
+            Models.TaskPriority.High => "border-warning border-2",
+            _ => ""
+        };
+    }
+}
