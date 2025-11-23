@@ -1,0 +1,99 @@
+@page "/tasks/edit/{TaskId:int}"
+@using TaskManagementApp.Models
+@using TaskManagementApp.Services
+@inject TaskService TaskService
+@inject NavigationManager Navigation
+
+<PageTitle>Edit Task</PageTitle>
+
+<div class="form-container">
+    @if (task != null)
+    {
+        <div class="form-header">
+            <h1>✏️ Edit Task</h1>
+            <button class="btn-back" @onclick="NavigateBack">← Back</button>
+        </div>
+
+        <EditForm Model="@task" OnValidSubmit="HandleSubmit">
+            <DataAnnotationsValidator />
+            <ValidationSummary class="validation-summary" />
+
+            <div class="form-group">
+                <label for="title">Task Title *</label>
+                <InputText id="title" class="form-control" @bind-Value="task.Title" placeholder="Enter task title" />
+                <ValidationMessage For="@(() => task.Title)" />
+            </div>
+
+            <div class="form-group">
+                <label for="description">Description</label>
+                <InputTextArea id="description" class="form-control" @bind-Value="task.Description" 
+                              placeholder="Enter task description (optional)" rows="4" />
+                <ValidationMessage For="@(() => task.Description)" />
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="dueDate">Due Date *</label>
+                    <InputDate id="dueDate" class="form-control" @bind-Value="task.DueDate" />
+                    <ValidationMessage For="@(() => task.DueDate)" />
+                </div>
+
+                <div class="form-group">
+                    <label for="priority">Priority *</label>
+                    <InputSelect id="priority" class="form-control" @bind-Value="task.Priority">
+                        <option value="@Priority.Low">Low</option>
+                        <option value="@Priority.Medium">Medium</option>
+                        <option value="@Priority.High">High</option>
+                    </InputSelect>
+                    <ValidationMessage For="@(() => task.Priority)" />
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <InputCheckbox @bind-Value="task.IsCompleted" />
+                    <span>Mark as completed</span>
+                </label>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Update Task</button>
+                <button type="button" class="btn btn-secondary" @onclick="NavigateBack">Cancel</button>
+            </div>
+        </EditForm>
+    }
+    else
+    {
+        <div class="loading">Loading task...</div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int TaskId { get; set; }
+
+    private TaskItem? task;
+
+    protected override async Task OnInitializedAsync()
+    {
+        task = await TaskService.GetTaskByIdAsync(TaskId);
+        if (task == null)
+        {
+            Navigation.NavigateTo("/tasks");
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (task != null)
+        {
+            await TaskService.UpdateTaskAsync(task);
+            Navigation.NavigateTo("/tasks");
+        }
+    }
+
+    private void NavigateBack()
+    {
+        Navigation.NavigateTo("/tasks");
+    }
+}

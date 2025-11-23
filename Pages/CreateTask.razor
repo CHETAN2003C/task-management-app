@@ -1,0 +1,74 @@
+@page "/tasks/create"
+@using TaskManagementApp.Models
+@using TaskManagementApp.Services
+@inject TaskService TaskService
+@inject NavigationManager Navigation
+
+<PageTitle>Create Task</PageTitle>
+
+<div class="form-container">
+    <div class="form-header">
+        <h1>➕ Create New Task</h1>
+        <button class="btn-back" @onclick="NavigateBack">← Back</button>
+    </div>
+
+    <EditForm Model="@newTask" OnValidSubmit="HandleSubmit">
+        <DataAnnotationsValidator />
+        <ValidationSummary class="validation-summary" />
+
+        <div class="form-group">
+            <label for="title">Task Title *</label>
+            <InputText id="title" class="form-control" @bind-Value="newTask.Title" placeholder="Enter task title" />
+            <ValidationMessage For="@(() => newTask.Title)" />
+        </div>
+
+        <div class="form-group">
+            <label for="description">Description</label>
+            <InputTextArea id="description" class="form-control" @bind-Value="newTask.Description" 
+                          placeholder="Enter task description (optional)" rows="4" />
+            <ValidationMessage For="@(() => newTask.Description)" />
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="dueDate">Due Date *</label>
+                <InputDate id="dueDate" class="form-control" @bind-Value="newTask.DueDate" />
+                <ValidationMessage For="@(() => newTask.DueDate)" />
+            </div>
+
+            <div class="form-group">
+                <label for="priority">Priority *</label>
+                <InputSelect id="priority" class="form-control" @bind-Value="newTask.Priority">
+                    <option value="@Priority.Low">Low</option>
+                    <option value="@Priority.Medium">Medium</option>
+                    <option value="@Priority.High">High</option>
+                </InputSelect>
+                <ValidationMessage For="@(() => newTask.Priority)" />
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Create Task</button>
+            <button type="button" class="btn btn-secondary" @onclick="NavigateBack">Cancel</button>
+        </div>
+    </EditForm>
+</div>
+
+@code {
+    private TaskItem newTask = new()
+    {
+        DueDate = DateTime.Now.AddDays(1),
+        Priority = Priority.Medium
+    };
+
+    private async Task HandleSubmit()
+    {
+        await TaskService.CreateTaskAsync(newTask);
+        Navigation.NavigateTo("/tasks");
+    }
+
+    private void NavigateBack()
+    {
+        Navigation.NavigateTo("/tasks");
+    }
+}

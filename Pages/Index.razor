@@ -1,0 +1,94 @@
+@page "/"
+@using TaskManagementApp.Services
+@inject TaskService TaskService
+@inject NavigationManager Navigation
+
+<PageTitle>Task Management - Home</PageTitle>
+
+<div class="home-container">
+    <div class="hero-section">
+        <h1 class="display-4">📋 Task Management System</h1>
+        <p class="lead">Organize your work efficiently and boost productivity</p>
+        <button class="btn btn-primary btn-lg" @onclick="NavigateToTasks">
+            View All Tasks
+        </button>
+    </div>
+
+    <div class="stats-section">
+        <h2>Quick Overview</h2>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">📊</div>
+                <div class="stat-value">@totalTasks</div>
+                <div class="stat-label">Total Tasks</div>
+            </div>
+            <div class="stat-card pending">
+                <div class="stat-icon">⏳</div>
+                <div class="stat-value">@pendingTasks</div>
+                <div class="stat-label">Pending</div>
+            </div>
+            <div class="stat-card completed">
+                <div class="stat-icon">✅</div>
+                <div class="stat-value">@completedTasks</div>
+                <div class="stat-label">Completed</div>
+            </div>
+            <div class="stat-card high-priority">
+                <div class="stat-icon">🔥</div>
+                <div class="stat-value">@highPriorityTasks</div>
+                <div class="stat-label">High Priority</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="features-section">
+        <h2>Features</h2>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">➕</div>
+                <h3>Create Tasks</h3>
+                <p>Add new tasks with titles, descriptions, due dates, and priorities</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">✏️</div>
+                <h3>Edit Tasks</h3>
+                <p>Update task details anytime to keep your workflow current</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🎯</div>
+                <h3>Set Priorities</h3>
+                <p>Organize tasks by Low, Medium, or High priority levels</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">✔️</div>
+                <h3>Track Progress</h3>
+                <p>Mark tasks as complete and monitor your productivity</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private int totalTasks = 0;
+    private int pendingTasks = 0;
+    private int completedTasks = 0;
+    private int highPriorityTasks = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadStatistics();
+    }
+
+    private async Task LoadStatistics()
+    {
+        var allTasks = await TaskService.GetAllTasksAsync();
+        totalTasks = allTasks.Count;
+        pendingTasks = allTasks.Count(t => !t.IsCompleted);
+        completedTasks = allTasks.Count(t => t.IsCompleted);
+        highPriorityTasks = allTasks.Count(t => t.Priority == TaskManagementApp.Models.Priority.High && !t.IsCompleted);
+    }
+
+    private void NavigateToTasks()
+    {
+        Navigation.NavigateTo("/tasks");
+    }
+}
