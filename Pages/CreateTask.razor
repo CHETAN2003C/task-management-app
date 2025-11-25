@@ -48,6 +48,34 @@
             </div>
         </div>
 
+        <div class="form-row">
+            <div class="form-group">
+                <label for="startTime">Start Time</label>
+                <InputText type="time" id="startTime" class="form-control" @bind-Value="startTimeString" />
+            </div>
+
+            <div class="form-group">
+                <label for="endTime">End Time</label>
+                <InputText type="time" id="endTime" class="form-control" @bind-Value="endTimeString" />
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="estimatedDuration">Estimated Duration (minutes)</label>
+                <InputNumber id="estimatedDuration" class="form-control" @bind-Value="newTask.EstimatedDurationMinutes" 
+                            placeholder="e.g., 60" min="0" />
+                <ValidationMessage For="@(() => newTask.EstimatedDurationMinutes)" />
+            </div>
+
+            <div class="form-group">
+                <label for="actualDuration">Actual Duration (minutes)</label>
+                <InputNumber id="actualDuration" class="form-control" @bind-Value="newTask.ActualDurationMinutes" 
+                            placeholder="e.g., 45" min="0" />
+                <ValidationMessage For="@(() => newTask.ActualDurationMinutes)" />
+            </div>
+        </div>
+
         <div class="form-group">
             <label for="category">Category</label>
             <InputSelect id="category" class="form-control" @bind-Value="newTask.CategoryId">
@@ -77,6 +105,9 @@
         DueDate = DateTime.Now.AddDays(1),
         Priority = Priority.Medium
     };
+    
+    private string? startTimeString;
+    private string? endTimeString;
 
     protected override async Task OnInitializedAsync()
     {
@@ -90,6 +121,17 @@
 
     private async Task HandleSubmit()
     {
+        // Convert time strings to TimeSpan
+        if (!string.IsNullOrEmpty(startTimeString) && TimeSpan.TryParse(startTimeString, out var startTime))
+        {
+            newTask.StartTime = startTime;
+        }
+        
+        if (!string.IsNullOrEmpty(endTimeString) && TimeSpan.TryParse(endTimeString, out var endTime))
+        {
+            newTask.EndTime = endTime;
+        }
+        
         await TaskService.CreateTaskAsync(newTask);
         Navigation.NavigateTo("/tasks");
     }

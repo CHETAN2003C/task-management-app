@@ -1,7 +1,12 @@
 @page "/"
 @using TaskManagementApp.Services
+@using TaskManagementApp.Models
+@using Microsoft.JSInterop
 @inject TaskService TaskService
+@inject CategoryService CategoryService
 @inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@implements IAsyncDisposable
 
 <PageTitle>Task Management - Home</PageTitle>
 
@@ -36,6 +41,18 @@
                 <div class="stat-icon">🔥</div>
                 <div class="stat-value">@highPriorityTasks</div>
                 <div class="stat-label">High Priority</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="charts-section">
+        <h2>Task Analytics</h2>
+        <div class="charts-grid">
+            <div class="chart-container">
+                <canvas id="categoryChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <canvas id="trendChart"></canvas>
             </div>
         </div>
     </div>
@@ -78,6 +95,14 @@
         await LoadStatistics();
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await InitializeCharts();
+        }
+    }
+
     private async Task LoadStatistics()
     {
         var allTasks = await TaskService.GetAllTasksAsync();
@@ -87,8 +112,84 @@
         highPriorityTasks = allTasks.Count(t => t.Priority == TaskManagementApp.Models.Priority.High && !t.IsCompleted);
     }
 
+    private async Task InitializeCharts()
+    {
+        try
+        {
+            await InitializeCategoryChart();
+            await InitializeTrendChart();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error initializing charts: {ex.Message}");
+        }
+    }
+
+    private async Task InitializeCategoryChart()
+    {
+        var categories = await CategoryService.GetAllCategoriesAsync();
+        var allTasks = await TaskService.GetAllTasksAsync();
+
+        if (categories.Any())
+        {
+            var categoryNames = categories.Select(c => c.Name).ToArray();
+            var taskCounts = categories.Select(c => allTasks.Count(t => t.CategoryId == c.Id)).ToArray();
+
+            // Add "Uncategorized" if there are tasks without a category
+            var uncategorizedCount = allTasks.Count(t => t.CategoryId == null);
+            if (uncategorizedCount > 0)
+            {
+                categoryNames = categoryNames.Append("Uncategorized").ToArray();
+                taskCounts = taskCounts.Append(uncategorizedCount).ToArray();
+            }
+
+            if (categoryNames.Any() && taskCounts.Any())
+            {
+                await JSRuntime.InvokeVoidAsync("initCategoryChart", categoryNames, taskCounts);
+            }
+        }
+    }
+
+    private async Task InitializeTrendChart()
+    {
+        var allTasks = await TaskService.GetAllTasksAsync();
+        var today = DateTime.Now.Date;
+        var dates = new List<string>();
+        var completedCounts = new List<int>();
+        var createdCounts = new List<int>();
+
+        // Get data for last 30 days
+        for (int i = 29; i >= 0; i--)
+        {
+            var date = today.AddDays(-i);
+            dates.Add(date.ToString("MM/dd"));
+            
+            // Count tasks completed on this date
+            var completed = allTasks.Count(t => t.IsCompleted && t.DueDate.Date == date);
+            completedCounts.Add(completed);
+            
+            // Count tasks created on this date
+            var created = allTasks.Count(t => t.CreatedAt.Date == date);
+            createdCounts.Add(created);
+        }
+
+        await JSRuntime.InvokeVoidAsync("initTrendChart", dates.ToArray(), completedCounts.ToArray(), createdCounts.ToArray());
+    }
+
     private void NavigateToTasks()
     {
         Navigation.NavigateTo("/tasks");
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("destroyCharts");
+        }
+        catch
+        {
+            // Ignore errors during disposal
+        }
     }
 }

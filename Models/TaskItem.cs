@@ -23,6 +23,16 @@ namespace TaskManagementApp.Models
 
         public DateTime CreatedAt { get; set; } = DateTime.Now;
 
+        // Time tracking fields
+        public TimeSpan? StartTime { get; set; }
+        public TimeSpan? EndTime { get; set; }
+        
+        [Range(0, int.MaxValue, ErrorMessage = "Estimated duration must be positive")]
+        public int? EstimatedDurationMinutes { get; set; }
+        
+        [Range(0, int.MaxValue, ErrorMessage = "Actual duration must be positive")]
+        public int? ActualDurationMinutes { get; set; }
+
         // Foreign keys
         public int? CategoryId { get; set; }
 

@@ -50,6 +50,34 @@
                 </div>
             </div>
 
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="startTime">Start Time</label>
+                    <InputText type="time" id="startTime" class="form-control" @bind-Value="startTimeString" />
+                </div>
+
+                <div class="form-group">
+                    <label for="endTime">End Time</label>
+                    <InputText type="time" id="endTime" class="form-control" @bind-Value="endTimeString" />
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="estimatedDuration">Estimated Duration (minutes)</label>
+                    <InputNumber id="estimatedDuration" class="form-control" @bind-Value="task.EstimatedDurationMinutes" 
+                                placeholder="e.g., 60" min="0" />
+                    <ValidationMessage For="@(() => task.EstimatedDurationMinutes)" />
+                </div>
+
+                <div class="form-group">
+                    <label for="actualDuration">Actual Duration (minutes)</label>
+                    <InputNumber id="actualDuration" class="form-control" @bind-Value="task.ActualDurationMinutes" 
+                                placeholder="e.g., 45" min="0" />
+                    <ValidationMessage For="@(() => task.ActualDurationMinutes)" />
+                </div>
+            </div>
+
             <div class="form-group">
                 <label for="category">Category</label>
                 <InputSelect id="category" class="form-control" @bind-Value="task.CategoryId">
@@ -86,6 +114,8 @@
 
     private TaskItem? task;
     private List<Category> categories = new();
+    private string? startTimeString;
+    private string? endTimeString;
 
     protected override async Task OnInitializedAsync()
     {
@@ -95,12 +125,37 @@
         {
             Navigation.NavigateTo("/tasks");
         }
+        else
+        {
+            // Convert TimeSpan to string for time inputs
+            startTimeString = task.StartTime?.ToString(@"hh\:mm");
+            endTimeString = task.EndTime?.ToString(@"hh\:mm");
+        }
     }
 
     private async Task HandleSubmit()
     {
         if (task != null)
         {
+            // Convert time strings to TimeSpan
+            if (!string.IsNullOrEmpty(startTimeString) && TimeSpan.TryParse(startTimeString, out var startTime))
+            {
+                task.StartTime = startTime;
+            }
+            else
+            {
+                task.StartTime = null;
+            }
+            
+            if (!string.IsNullOrEmpty(endTimeString) && TimeSpan.TryParse(endTimeString, out var endTime))
+            {
+                task.EndTime = endTime;
+            }
+            else
+            {
+                task.EndTime = null;
+            }
+            
             await TaskService.UpdateTaskAsync(task);
             Navigation.NavigateTo("/tasks");
         }
